@@ -134,8 +134,8 @@ function afsoon_loss(node::RuleNode, grammar::Grammar, X::AbstractVector{T}, y_t
     if ex in exprs          
         return 1000000.0    
     end                     
-    y_bool = partition(X, members, ex, eval_module)            
-    members_true, members_false = members_by_bool(members, y_bool)
+    y_fuzz = partitionfuzzy(X, members, ex, eval_module)            
+    members_true, members_false = members_by_fuzz(members, y_fuzz)
     if ishomogeneous(y_truth[members])
         return w1*length(members_true)*length(members_false) + w2*length(node)
     else
@@ -235,8 +235,8 @@ function _split(node_count::Counter, grammar::Grammar, typ::Symbol, p::ExprOptAl
         return GBDTNode(id, mode(y_truth[members]))
     end
 
-    y_bool = partition(X, members, gbes_result.expr, eval_module)
-    members_true, members_false = members_by_bool(members, y_bool)
+    y_bool = partitionfuzzy(X, members, gbes_result.expr, eval_module)
+    members_true, members_false = members_by_fuzz(members, y_bool)
 
     if ishomogeneous(y_truth[members]) && length(members_true) > min_members_per_branch && length(members_false) > min_members_per_branch
         return GBDTNode(id, mode(y_truth[members]))
@@ -282,6 +282,14 @@ function partition(X::AbstractVector{T}, members::AbstractVector{Int}, expr, eva
     end
     y_bool
 end
+function partitionfuzzy(X::AbstractVector{T}, members::AbstractVector{Int}, expr, eval_module::Module) where T
+    y_fuzz = Vector{Float64}(undef, length(members))
+    for i in eachindex(members)
+        @eval eval_module x = $(X[members[i]])
+        y_fuzz[i] = Core.eval(eval_module, expr) #use x in expression
+    end
+    y_fuzz
+end
 
 """
     members_by_bool(members::AbstractVector{Int}, y_bool::AbstractVector{Bool})
@@ -291,6 +299,10 @@ Returns a tuple containing the results of splitting members by the Boolean value
 function members_by_bool(members::AbstractVector{Int}, y_bool::AbstractVector{Bool})
     @assert length(y_bool) == length(members)
     return members[findall(y_bool)], members[findall(!,y_bool)]
+end
+function members_by_fuzz(members::AbstractVector{Int}, y_fuzz::AbstractVector{Float64})
+    @assert length(y_fuzz) == length(members)
+    return members[findall(y_fuzz .> 0.0)], members[findall(y_fuzz .== 0.0)]
 end
 
 """
