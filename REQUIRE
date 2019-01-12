@@ -7,3 +7,6 @@ Discretizers
 AbstractTrees
 ExprRules
 ExprOptimization
+JLD
+TikzPictures
+HDF5
