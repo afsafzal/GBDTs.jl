@@ -12,6 +12,7 @@ export
         partition,
         members_by_bool,
         classify,
+        classifyfuzzy,
         node_members,
         children_id,
         id,
@@ -418,15 +419,22 @@ function classify(model::GBDT, X::AbstractVector{T},
 
     classify(model.tree, X, members, eval_module; catdisc=model.catdisc)
 end
+function classifyfuzzy(model::GBDT, X::AbstractVector{T},
+    members::AbstractVector{Int}=collect(1:length(X)),
+    eval_module::Module=Main) where T
+
+    classifyfuzzy(model.tree, X, members, eval_module; catdisc=model.catdisc)
+end
+
 """
     classify(node::GBDTNode, X::AbstractVector{T}, members::AbstractVector{Int}, eval_module::Module=Main;
                      catdisc::Union{Nothing,CategoricalDiscretizer}=nothing) where T
 
 Predict classification label of each member using GBDT tree.  Evaluate expressions in eval_module.  If catdisc is available, use discretizer to decode labels.
 """
-function classify(node::GBDTNode, X::AbstractVector{T}, 
-    members::AbstractVector{Int}=collect(1:length(X)), 
-    eval_module::Module=Main; 
+function classify(node::GBDTNode, X::AbstractVector{T},
+    members::AbstractVector{Int}=collect(1:length(X)),
+    eval_module::Module=Main;
     catdisc::Union{Nothing,CategoricalDiscretizer}=nothing) where T
 
     y_pred = Vector{Int}(undef,length(members))
@@ -447,6 +455,45 @@ function _classify(node::GBDTNode, eval_module::Module)
     ch =  Core.eval(eval_module, ex) ? node.children[1] : node.children[2] 
     return _classify(ch, eval_module) 
 end
+
+function classifyfuzzy(node::GBDTNode, X::AbstractVector{T},
+    members::AbstractVector{Int}=collect(1:length(X)),
+    eval_module::Module=Main;
+    catdisc::Union{Nothing,CategoricalDiscretizer}=nothing) where T
+
+    y_pred = Vector{Dict{Int64, Float64}}(undef,length(members))
+    for i in eachindex(members)
+        @eval eval_module x=$(X[i])
+        labels = Dict{Int64, Float64}()
+        _classifyfuzzy(node, eval_module, 1.0, labels)
+        y_pred[i] = labels
+    end
+    if catdisc == nothing
+        return y_pred
+    else
+        return decode(catdisc, y_pred)
+    end
+end
+function _classifyfuzzy(node::GBDTNode, eval_module::Module, score::Float64, labels::Dict{Int64, Float64})
+    if score == 0.0
+        return
+    end
+    if isleaf(node)
+        c = get(labels, node.label, -1)
+        if c == -1
+            labels[node.label] = score
+        else
+            labels[node.label] = c + score
+        end
+        return
+    end
+
+    ex = get_expr(node.gbes_result)
+    val =  Core.eval(eval_module, ex)
+    _classifyfuzzy(node.children[1], eval_module, score * val, labels)
+    _classifyfuzzy(node.children[2], eval_module, score * (1.0 - val), labels)
+end
+
 
 """
     node_members(model::GBDT, X::AbstractVector{T}, members::AbstractVector{Int}, 
