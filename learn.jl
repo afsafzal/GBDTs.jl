@@ -19,7 +19,7 @@ mode = ARGS[2]
 depth = parse(Int64, ARGS[3])
 output_dir = "."
 if length(ARGS) == 4
-    ouput_dir = ARGS[4]
+    output_dir = ARGS[4]
 end
 
 println("Reading data")
@@ -135,7 +135,8 @@ println("Done saving")
 try
     println("Display")
     t = display(model; edgelabels=false) #suppress edge labels for clarity (left branch is true, right branch is false)
-    TikzPictures.save(TikzPictures.PDF(joinpath(output_dir, "graph")), t)
+    cd(output_dir)
+    TikzPictures.save(TikzPictures.PDF("graph"), t)
     println("Done display")
 catch y
     println("Display failed")
