@@ -1,4 +1,4 @@
-include("./GBDTsfuzzy.jl")
+include("./src/GBDTsfuzzy.jl")
 
 using .GBDTsfuzzy
 using MultivariateTimeSeries
@@ -8,7 +8,7 @@ import JLD
 using Random; Random.seed!(1)
 
 if length(ARGS) < 3
-    println("Insufficient arguments: <path-to-data> <fuzzy-or-normal> <max-depth-of-tree>")
+    println("Insufficient arguments: <path-to-data> <fuzzy-or-normal> <max-depth-of-tree> [output-dir]")
     throw(Exception)
 end
 
@@ -17,6 +17,10 @@ mode = ARGS[2]
 @assert mode == "fuzzy" || mode == "normal"
 
 depth = parse(Int64, ARGS[3])
+output_dir = "."
+if length(ARGS) == 4
+    ouput_dir = ARGS[4]
+end
 
 println("Reading data")
 #X, y = read_data_labeled(joinpath("..", "data", ARGS[1]));
@@ -125,13 +129,13 @@ println("Done show")
 
 
 println("Storing model")
-JLD.save("model.jld", "model", model, "v", v)
+JLD.save(joinpath(output_dir, "model.jld"), "model", model, "v", v)
 println("Done saving")
 
 try
     println("Display")
     t = display(model; edgelabels=false) #suppress edge labels for clarity (left branch is true, right branch is false)
-    TikzPictures.save(TikzPictures.PDF("graph"), t)
+    TikzPictures.save(TikzPictures.PDF(joinpath(output_dir, "graph")), t)
     println("Done display")
 catch y
     println("Display failed")
