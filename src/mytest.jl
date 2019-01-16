@@ -7,8 +7,20 @@ import TikzPictures
 import JLD
 using Random; Random.seed!(1)
 
+if length(ARGS) < 3
+    println("Insufficient arguments: <path-to-data> <fuzzy-or-normal> <max-depth-of-tree>")
+    throw(Exception)
+end
+
+mode = ARGS[2]
+
+@assert mode == "fuzzy" || mode == "normal"
+
+depth = parse(Int64, ARGS[3])
+
 println("Reading data")
-X, y = read_data_labeled(joinpath("..", "data", "out"));
+#X, y = read_data_labeled(joinpath("..", "data", ARGS[1]));
+X, y = read_data_labeled(ARGS[1])
 println("Finished reading")
 
 
@@ -100,7 +112,11 @@ p = MonteCarlo(2000, 5)
 println("MonteCarlo")
 
 println("Learning decision tree")
-model = induce_tree(grammar_fuzzy, :b, p, X, y, 2, afsoon_loss);
+if mode == "normal"
+    model = induce_tree(grammar, :b, p, X, y, depth, afsoon_loss);
+else
+    model = induce_tree(grammar_fuzzy, :b, p, X, y, depth, afsoon_loss);
+end
 println("Finished learning")
 println("Show")
 show(model)

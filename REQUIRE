@@ -10,3 +10,5 @@ ExprOptimization
 JLD
 TikzPictures
 HDF5
+
+add julia@0.7 Reexport TikzGraphs@0.5.1 LightGraphs StatsBase Discretizers AbstractTrees ExprRules ExprOptimization TikzPictures
