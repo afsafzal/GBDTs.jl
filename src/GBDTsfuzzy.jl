@@ -21,7 +21,8 @@ export
         children,
         gini,
         gini_loss,
-        afsoon_loss
+        afsoon_loss,
+        afsoon_loss_fuzzy
 
 using Discretizers
 using Reexport
@@ -125,16 +126,31 @@ function gini_loss(node::RuleNode, grammar::Grammar, X::AbstractVector{T}, y_tru
     members_true, members_false = members_by_bool(members, y_bool)
     return w1*gini(y_truth[members_true], y_truth[members_false]) + w2*length(node)
 end
-
-function afsoon_loss(node::RuleNode, grammar::Grammar, X::AbstractVector{T}, y_truth::AbstractVector{Int},                            
-                        members::AbstractVector{Int}, eval_module::Module, exprs::Array{Expr,1};                                         
-                        w1::Float64=10.0,                         
-                        w2::Float64=0.1) where T                
-    ex = get_executable(node, grammar)                         
-    if ex in exprs          
-        return 1000000.0    
-    end                     
-    y_fuzz = partitionfuzzy(X, members, ex, eval_module)            
+function afsoon_loss(node::RuleNode, grammar::Grammar, X::AbstractVector{T}, y_truth::AbstractVector{Int},
+                        members::AbstractVector{Int}, eval_module::Module, exprs::Array{Expr,1};
+                        w1::Float64=10.0,
+                        w2::Float64=0.1) where T
+    ex = get_executable(node, grammar)
+    if ex in exprs
+        return 1000000.0
+    end
+    y_bool = partition(X, members, ex, eval_modul)
+    members_true, members_false = members_by_bool(members, y_bool)
+    if ishomogeneous(y_truth[members])
+        return w1*length(members_true)*length(members_false) + w2*length(node)
+    else
+        return w1*gini(y_truth[members_true], y_truth[members_false]) + w2*length(node)
+    end
+end
+function afsoon_loss_fuzzy(node::RuleNode, grammar::Grammar, X::AbstractVector{T}, y_truth::AbstractVector{Int},
+                        members::AbstractVector{Int}, eval_module::Module, exprs::Array{Expr,1};
+                        w1::Float64=10.0,
+                        w2::Float64=0.1) where T
+    ex = get_executable(node, grammar)
+    if ex in exprs
+        return 1000000.0
+    end
+    y_fuzz = partitionfuzzy(X, members, ex, eval_module)
     members_true, members_false = members_by_fuzz(members, y_fuzz)
     if ishomogeneous(y_truth[members])
         return w1*length(members_true)*length(members_false) + w2*length(node)

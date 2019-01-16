@@ -119,7 +119,7 @@ println("Learning decision tree")
 if mode == "normal"
     model = induce_tree(grammar, :b, p, X, y, depth, afsoon_loss);
 else
-    model = induce_tree(grammar_fuzzy, :b, p, X, y, depth, afsoon_loss);
+    model = induce_tree(grammar_fuzzy, :b, p, X, y, depth, afsoon_loss_fuzzy);
 end
 println("Finished learning")
 println("Show")
