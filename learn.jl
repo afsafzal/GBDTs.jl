@@ -58,7 +58,7 @@ println("Done show")
 
 
 println("Storing model")
-JLD.save(joinpath(output_dir, "model.jld"), "model", model, "v", v)
+JLD.save(joinpath(output_dir, "model.jld"), "model", model, "v", v, "mode", mode)
 println("Done saving")
 
 try
