@@ -8,7 +8,7 @@ Grammar-based decision tree (GBDT) is an interpretable machine learning model th
 
 To run the script you first need to install required packages:
 ```
-pkg> add Reexport TikzGraphs LightGraphs StatsBase Discretizers AbstractTrees ExprRules ExprOptimization TikzPictures HDF5 JLD
+pkg> add Reexport TikzGraphs LightGraphs StatsBase Discretizers AbstractTrees ExprRules ExprOptimization TikzPictures ArgParse HDF5 JLD
 ```
 In addition you need to add `MultivariateTimeSeries`:
 ```
@@ -22,17 +22,26 @@ Please see the [example notebook](http://nbviewer.ipython.org/github/sisl/GBDTs.
 
 To learn GBDT model for Houston data:
 ```
-julia learn.jl <path-to-data-dir> <fuzzy-or-normal> <max-depth> [path-to-output-dir]
+julia learn.jl <data> <depth> [--output_dir OUTPUT_DIR] [--fuzzy] [--name NAME]
 ```
 Example:
 ```
-julia learn.jl data/test1/ fuzzy 5 out/
+julia learn.jl data/train/ 5 --output_dir model/ --fuzzy --name factory.MAV_CMD_NAV_TAKEOFF
 ```
 The data folder should include three files:
     1. `data.csv.gz`: a csv of all time series
     2. `labels.txt`: class label for each time series
     3. `_meta.txt`: the index of the start of a new time serie in the csv file.
-The output of this script includes `model.jld` which stores the model, and `graph.pdf` that stores a representation of the tree.
+The output of this script includes `NAME.jld` (by default `model.jld`) which stores the model, and `graph.pdf` that stores a representation of the tree.
+
+To classify test data against a model:
+```
+julia test.jl <data> <model>
+```
+Example:
+```
+julia test.jl data/test/ model/factory.MAV_CMD_NAV_TAKEOFF.jld
+```
 
 ## Maintainers:
 
