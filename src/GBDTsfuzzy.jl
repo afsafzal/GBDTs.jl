@@ -56,6 +56,7 @@ GBDT model produced by induce_tree.
 struct GBDT
     tree::GBDTNode
     catdisc::Union{Nothing,CategoricalDiscretizer}
+    void_label::Union{Nothing,Int}
 end
 
 """
@@ -218,15 +219,16 @@ function induce_tree(grammar::Grammar, typ::Symbol, p::ExprOptAlgorithm, X::Abst
     members = collect(1:length(y_truth))
     node_count = Counter(0)
     cluster_count = length(unique(y_truth))
+    void_label = cluster_count + 1
     exprs = Expr[]
-    node = _split(node_count, grammar, typ, p, X, y_truth, members, max_depth, loss, eval_module, cluster_count+1, exprs,
+    node = _split(node_count, grammar, typ, p, X, y_truth, members, max_depth, loss, eval_module, void_label, exprs,
                  min_members_per_branch=min_members_per_branch, 
                  prevent_same_label=prevent_same_label, verbose=verbose)
     if typeof(catdisc) == CategoricalDiscretizer #FIXME
         catdisc.n2d[cluster_count + 1] = cluster_count + 1
         catdisc.d2n[cluster_count + 1] = cluster_count + 1
     end
-    return GBDT(node, catdisc)
+    return GBDT(node, catdisc, void_label)
 end
 function _split(node_count::Counter, grammar::Grammar, typ::Symbol, p::ExprOptAlgorithm, 
                        X::AbstractVector{T}, y_truth::AbstractVector{Int}, 
