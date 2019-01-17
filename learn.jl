@@ -3,30 +3,45 @@ include("./MyGrammar.jl")
 
 using .GBDTsfuzzy
 using .MyGrammar
+using ArgParse
 using MultivariateTimeSeries
 using Printf
 import TikzPictures
 import JLD
 using Random; Random.seed!(1)
 
-if length(ARGS) < 3
-    println("Insufficient arguments: <path-to-data> <fuzzy-or-normal> <max-depth-of-tree> [output-dir]")
-    throw(Exception)
+s = ArgParseSettings()
+@add_arg_table s begin
+    "data"
+        help = "path to data"
+        required = true
+        arg_type = String
+    "--fuzzy"
+        help = "run in fuzzy more"
+        action = :store_true
+    "depth"
+        help = "maximum depth of the tree"
+        arg_type = Int
+        required = true
+    "--output_dir"
+        help = "output directory"
+        arg_type = String
+        default = "."
+    "--name"
+        help = "name of the model"
+        arg_type = String
+        default = "model"
+end
+args = parse_args(ARGS, s)
+
+mode = "normal"
+if args["fuzzy"]
+    mode = "fuzzy"
 end
 
-mode = ARGS[2]
-
-@assert mode == "fuzzy" || mode == "normal"
-
-depth = parse(Int64, ARGS[3])
-output_dir = "."
-if length(ARGS) == 4
-    output_dir = ARGS[4]
-end
 
 println("Reading data")
-#X, y = read_data_labeled(joinpath("..", "data", ARGS[1]));
-X, y = read_data_labeled(ARGS[1])
+X, y = read_data_labeled(args["data"])
 println("Finished reading")
 
 
@@ -46,9 +61,9 @@ println("MonteCarlo")
 
 println("Learning decision tree")
 if mode == "normal"
-    model = induce_tree(grammar, :b, p, X, y, depth, afsoon_loss);
+    model = induce_tree(grammar, :b, p, X, y, args["depth"], afsoon_loss);
 else
-    model = induce_tree(grammar_fuzzy, :b, p, X, y, depth, afsoon_loss_fuzzy);
+    model = induce_tree(grammar_fuzzy, :b, p, X, y, args["depth"], afsoon_loss_fuzzy);
 end
 println("Finished learning")
 println("Show")
@@ -58,13 +73,13 @@ println("Done show")
 
 
 println("Storing model")
-JLD.save(joinpath(output_dir, "model.jld"), "model", model, "v", v, "mode", mode)
+JLD.save(joinpath(args["output_dir"], string(args["name"], ".jld")), "model", model, "v", v, "mode", mode)
 println("Done saving")
 
 try
     println("Display")
     t = display(model; edgelabels=false) #suppress edge labels for clarity (left branch is true, right branch is false)
-    cd(output_dir)
+    cd(args["output_dir"])
     TikzPictures.save(TikzPictures.PDF("graph"), t)
     println("Done display")
 catch y

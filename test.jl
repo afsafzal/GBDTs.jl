@@ -3,23 +3,34 @@ include("./MyGrammar.jl")
 
 using .GBDTsfuzzy
 using .MyGrammar
+using ArgParse
 using MultivariateTimeSeries
 using Printf
 import JLD
 using Random; Random.seed!(1)
 
-if length(ARGS) < 2
-    println("Insufficient arguments: <path-to-test-data> <path-to-model-jld-file>")
-    throw(Exception)
+
+s = ArgParseSettings()
+@add_arg_table s begin
+    "data"
+        help = "path to test data"
+        arg_type = String
+        required = true
+    "model"
+        help = "path to model jld file"
+        arg_type = String
+        required = true
 end
 
+args = parse_args(ARGS, s)
+
 println("Reading data")
-X, y = read_data_labeled(ARGS[1])
+X, y = read_data_labeled(args["data"])
 println("Finished reading")
 
 println("Reading model")
 
-m = JLD.load(ARGS[2])
+m = JLD.load(args["model"])
 
 v = m["v"]
 model = m["model"]
