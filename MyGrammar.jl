@@ -30,7 +30,8 @@ export
         gt,
         gtf,
         gte,
-        gtef
+        gtef,
+        add_xid
 
 using ExprRules
 
@@ -107,5 +108,14 @@ ltef(x1, x2, tr) = (a = Vector{Float64}(undef,length(x1)); a .= [x1[i] <= x2[i] 
 gtf(x1, x2, tr) = (a = Vector{Float64}(undef,length(x1)); a .= [x1[i] > x2[i] ? 1.0 : x1[i] > x2[i] - tr ? 0.5 : 0.0 for i in 1:length(x1)])   #less than
 gtef(x1, x2, tr) = (a = Vector{Float64}(undef,length(x1)); a .= [x1[i] >= x2[i] ? 1.0 : x1[i] >= x2[i] - tr ? 0.5 : 0.0 for i in 1:length(x1)])   #less than
 
+
+function add_xid(g::Grammar, sym::Symbol)
+    push!(g.isterminal, true)
+    push!(g.iseval, false)
+    push!(g.rules, QuoteNode(sym))
+    push!(g.types, :xid)
+    push!(g.childtypes, [])
+    push!(g.bytype[:xid], length(g.types))
+end
 
 end

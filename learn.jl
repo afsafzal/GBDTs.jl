@@ -44,6 +44,17 @@ println("Reading data")
 X, y = read_data_labeled(args["data"])
 println("Finished reading")
 
+g = grammar
+if mode == "fuzzy"
+    g = grammar_fuzzy
+end
+
+
+for xid in names(X)
+    if startswith(string(xid), "p_")
+        add_xid(g, xid)
+    end
+end
 
 println("Grammar defined")
 
@@ -61,9 +72,9 @@ println("MonteCarlo")
 
 println("Learning decision tree")
 if mode == "normal"
-    model = induce_tree(grammar, :b, p, X, y, args["depth"], afsoon_loss);
+    model = induce_tree(g, :b, p, X, y, args["depth"], afsoon_loss);
 else
-    model = induce_tree(grammar_fuzzy, :b, p, X, y, args["depth"], afsoon_loss_fuzzy);
+    model = induce_tree(g, :b, p, X, y, args["depth"], afsoon_loss_fuzzy);
 end
 println("Finished learning")
 println("Show")
