@@ -91,7 +91,7 @@ try
     println("Display")
     t = display(model; edgelabels=false) #suppress edge labels for clarity (left branch is true, right branch is false)
     cd(args["output_dir"])
-    TikzPictures.save(TikzPictures.PDF("graph"), t)
+    TikzPictures.save(TikzPictures.PDF(args["name"]), t)
     println("Done display")
 catch y
     println("Display failed")
