@@ -98,15 +98,16 @@ f_gtf(x, xid, v, vid, tr) = gtf(x[xid], ones(length(x[xid])) * v[xid][vid], tr) 
 f_gtef(x, xid, v, vid, tr) = gtef(x[xid], ones(length(x[xid])) * v[xid][vid], tr)             #feature is greater than or equal to a constant
 
 
+
 #workarounds for slow dot operators:
-impliesf(v1, v2) = (a = similar(v1); a .= orf(notf(v1), v2))         #implies
-notf(v) = (a = similar(v); a .= 1 .- v)                          #not
-andf(v1, v2) = (a = similar(v1); a .= [min(v1[i], v2[i]) for i in 1:length(v1)])               #and
-orf(v1, v2) = (a = similar(v1); a .= [max(v1[i], v2[i]) for i in 1:length(v1)])                #or
-ltf(x1, x2, tr) = (a = Vector{Float64}(undef,length(x1)); a .= [x1[i] < x2[i] ? 1.0 : x1[i] < x2[i] + tr ? 0.5 : 0.0 for i in 1:length(x1)])   #less than
-ltef(x1, x2, tr) = (a = Vector{Float64}(undef,length(x1)); a .= [x1[i] <= x2[i] ? 1.0 : x1[i] <= x2[i] + tr ? 0.5 : 0.0 for i in 1:length(x1)])
-gtf(x1, x2, tr) = (a = Vector{Float64}(undef,length(x1)); a .= [x1[i] > x2[i] ? 1.0 : x1[i] > x2[i] - tr ? 0.5 : 0.0 for i in 1:length(x1)])   #less than
-gtef(x1, x2, tr) = (a = Vector{Float64}(undef,length(x1)); a .= [x1[i] >= x2[i] ? 1.0 : x1[i] >= x2[i] - tr ? 0.5 : 0.0 for i in 1:length(x1)])   #less than
+impliesf(v1, v2) = (orf(notf(v1), v2))         #implies
+notf(v) = (1 .- v)                          #not
+andf(v1, v2) = (map((x, y) -> min(x, y), v1, v2))               #and
+orf(v1, v2) = (map( (x, y) -> max(x, y), v1, v2))                #or
+ltf(x1, x2, tr) = (map((x, y) -> x < y ? 1.0 : x < y + tr ? 0.5 : 0.0, x1, x2))   #less than
+ltef(x1, x2, tr) = (map((x, y) -> x <= y ? 1.0 : x <= y + tr ? 0.5 : 0.0, x1, x2))
+gtf(x1, x2, tr) = (map((x, y) -> x > y ? 1.0 : x > y - tr ? 0.5 : 0.0, x1, x2))   #less than
+gtef(x1, x2, tr) = (map((x, y) -> x >= y ? 1.0 : x >= y - tr ? 0.5 : 0.0, x1, x2))   #less than
 
 
 function add_xid(g::Grammar, sym::Symbol)

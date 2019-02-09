@@ -320,7 +320,7 @@ function partitionfuzzy(X::AbstractVector{T}, members::AbstractVector{Float64}, 
     y_fuzz = zeros(length(members))
     for i in findall(x->x>0.0, members)
         @eval eval_module x = $(X[i])
-        y_fuzz[i] = Core.eval(eval_module, expr) #use x in expression
+        y_fuzz[i] = Core.eval(eval_module, expr) #use x in expression #TODO This takes a long time
     end
     y_fuzz
 end
@@ -379,11 +379,6 @@ function gini_afsoon(y_truth::AbstractVector{Int}, members::AbstractVector{Float
         return 0.0
     end
     label_to_score = Dict(y => score(findall(x->x==y, y_truth), members) for y in unique(y_truth))
-#    label_to_score = Dict{Int, Float64}(y => 0.0 for y in unique(y_truth))
-#    for i in eachindex(members)
-#        y = y_truth[i]
-#        label_to_score[y] = label_to_score[y] + members[i]
-#    end
     v = values(label_to_score)
     return 1.0 - sum(abs2, v ./ s)
 end
