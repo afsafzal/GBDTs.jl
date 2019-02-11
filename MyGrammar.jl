@@ -15,6 +15,7 @@ export
         f_gtf,
         f_gte,
         f_gtef,
+        f_ef,
         implies,
         impliesf,
         not,
@@ -31,6 +32,7 @@ export
         gtf,
         gte,
         gtef,
+        ef,
         add_xid
 
 using ExprRules
@@ -77,17 +79,20 @@ grammar_fuzzy = @grammar begin
     bvec = orf(bvec, bvec)
     bvec = notf(bvec)
     bvec = ltf(rvec, rvec, tr)
-    bvec = ltef(rvec, rvec, tr)
+#    bvec = ltef(rvec, rvec, tr)
     bvec = gtf(rvec, rvec, tr)
-    bvec = gtef(rvec, rvec, tr)
+#    bvec = gtef(rvec, rvec, tr)
+    bvec = ef(rvec, rvec, tr_s)
     bvec = f_ltf(x, xid, v, vid, tr)
-    bvec = f_ltef(x, xid, v, vid, tr)
+#    bvec = f_ltef(x, xid, v, vid, tr)
     bvec = f_gtf(x, xid, v, vid, tr)
-    bvec = f_gtef(x, xid, v, vid, tr)
+#    bvec = f_gtef(x, xid, v, vid, tr)
+    bvec = f_ef(x, xid, v, vid, tr_s)
     rvec = x[xid]
     xid = |([:altitude,:roll,:vx,:home_latitude,:vz,:yaw,:groundspeed,:longitude,:home_longitude,:pitch,:vy,:latitude,:time_offset,:airspeed])
-    vid = |(1:10)
+    vid = |(1:3)
     tr = 1.0
+    tr_s = 0.3
 end
 
 Gf(v) = minimum(v)                                                #globally
@@ -96,7 +101,7 @@ f_ltf(x, xid, v, vid, tr) = ltf(x[xid], ones(length(x[xid])) * v[xid][vid], tr) 
 f_ltef(x, xid, v, vid, tr) = ltef(x[xid], ones(length(x[xid])) * v[xid][vid], tr)             #feature is less than or equal to a constant
 f_gtf(x, xid, v, vid, tr) = gtf(x[xid], ones(length(x[xid])) * v[xid][vid], tr)               #feature is greater than a constant
 f_gtef(x, xid, v, vid, tr) = gtef(x[xid], ones(length(x[xid])) * v[xid][vid], tr)             #feature is greater than or equal to a constant
-
+f_ef(x, xid, v, vid, tr) = ef(x[xid], ones(length(x[xid])) * v[xid][vid], tr)
 
 
 #workarounds for slow dot operators:
@@ -104,10 +109,11 @@ impliesf(v1, v2) = (orf(notf(v1), v2))         #implies
 notf(v) = (1 .- v)                          #not
 andf(v1, v2) = (map((x, y) -> min(x, y), v1, v2))               #and
 orf(v1, v2) = (map( (x, y) -> max(x, y), v1, v2))                #or
-ltf(x1, x2, tr) = (map((x, y) -> x < y ? 1.0 : x < y + tr ? 0.5 : 0.0, x1, x2))   #less than
-ltef(x1, x2, tr) = (map((x, y) -> x <= y ? 1.0 : x <= y + tr ? 0.5 : 0.0, x1, x2))
-gtf(x1, x2, tr) = (map((x, y) -> x > y ? 1.0 : x > y - tr ? 0.5 : 0.0, x1, x2))   #less than
-gtef(x1, x2, tr) = (map((x, y) -> x >= y ? 1.0 : x >= y - tr ? 0.5 : 0.0, x1, x2))   #less than
+ltf(x1, x2, tr) = (map((x, y) -> x < y - tr ? 1.0 : x < y + tr ? 0.5 + (y-x)/2*tr : 0.0, x1, x2))   #less than
+ltef(x1, x2, tr) = (map((x, y) -> x <= y - tr ? 1.0 : x <= y + tr ? 0.5 + (y-x)/2*tr : 0.0, x1, x2))
+gtf(x1, x2, tr) = (map((x, y) -> x > y + tr ? 1.0 : x > y - tr ? 0.5 + (x-y)/2*tr : 0.0, x1, x2))   #less than
+gtef(x1, x2, tr) = (map((x, y) -> x >= y + tr ? 1.0 : x >= y - tr ? 0.5 + (x-y)/2*tr : 0.0, x1, x2))   #less than
+ef(x1, x2, tr) = map(a -> abs(a) < tr ? 1.0 : 0.0, x1 .- x2)
 
 
 function add_xid(g::Grammar, sym::Symbol)

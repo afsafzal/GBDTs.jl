@@ -61,7 +61,7 @@ println("Grammar defined")
 const v = Dict{Symbol,Vector{Float64}}()
 mins, maxes = minimum(X), maximum(X)
 for (i,xid) in enumerate(names(X))
-    v[xid] = collect(range(mins[i],stop=maxes[i],length=10))
+    v[xid] = collect(range(mins[i],stop=maxes[i],length=3))
 end;
 
 println("Constants are set")
