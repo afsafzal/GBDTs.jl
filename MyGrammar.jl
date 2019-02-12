@@ -15,6 +15,7 @@ export
         f_gtf,
         f_gte,
         f_gtef,
+        f_e,
         f_ef,
         implies,
         impliesf,
@@ -32,27 +33,30 @@ export
         gtf,
         gte,
         gtef,
+        e,
         ef,
         add_xid
 
 using ExprRules
 
 grammar = @grammar begin
-    b = G(bvec) | F(bvec) | G(implies(bvec,bvec))
-    bvec = and(bvec, bvec)
-    bvec = or(bvec, bvec)
-    bvec = not(bvec)
+    b = Gf(bvec) | Ff(bvec) | Gf(impliesf(bvec,bvec))
+    bvec = andf(bvec, bvec)
+    bvec = orf(bvec, bvec)
+    bvec = notf(bvec)
     bvec = lt(rvec, rvec)
-    bvec = lte(rvec, rvec)
+#    bvec = lte(rvec, rvec)
     bvec = gt(rvec, rvec)
-    bvec = gte(rvec, rvec)
+#    bvec = gte(rvec, rvec)
+    bvec = e(rvec, rvec)
     bvec = f_lt(x, xid, v, vid)
-    bvec = f_lte(x, xid, v, vid)
+#    bvec = f_lte(x, xid, v, vid)
     bvec = f_gt(x, xid, v, vid)
-    bvec = f_gte(x, xid, v, vid)
+#    bvec = f_gte(x, xid, v, vid)
+    bvec = f_e(x, xid, v, vid)
     rvec = x[xid]
     xid = |([:altitude,:roll,:vx,:home_latitude,:vz,:yaw,:groundspeed,:longitude,:home_longitude,:pitch,:vy,:latitude,:time_offset,:airspeed])
-    vid = |(1:10)
+    vid = |(1:3)
 end
 
 G(v) = all(v)                                                #globally
@@ -61,16 +65,18 @@ f_lt(x, xid, v, vid) = lt(x[xid], v[xid][vid])               #feature is less th
 f_lte(x, xid, v, vid) = lte(x[xid], v[xid][vid])             #feature is less than or equal to a constant
 f_gt(x, xid, v, vid) = gt(x[xid], v[xid][vid])               #feature is greater than a constant
 f_gte(x, xid, v, vid) = gte(x[xid], v[xid][vid])             #feature is greater than or equal to a constant
+f_e(x, xid, v, vid) = e(x[xid], v[xid][vid])
 
 #workarounds for slow dot operators:
 implies(v1, v2) = (a = similar(v1); a .= v2 .| .!v1)         #implies
 not(v) = (a = similar(v); a .= .!v)                          #not
 and(v1, v2) = (a = similar(v1); a .= v1 .& v2)               #and
 or(v1, v2) = (a = similar(v1); a .= v1 .| v2)                #or
-lt(x1, x2) = (a = Vector{Bool}(undef,length(x1)); a .= x1 .< x2)   #less than
-lte(x1, x2) = (a = Vector{Bool}(undef,length(x1)); a .= x1 .≤ x2)  #less than or equal to
-gt(x1, x2) = (a = Vector{Bool}(undef,length(x1)); a .= x1 .> x2)   #greater than
-gte(x1, x2) = (a = Vector{Bool}(undef,length(x1)); a .= x1 .≥ x2)  #greater than or equal to
+lt(x1, x2) = (a = Vector{Float64}(undef,length(x1)); a .= x1 .< x2)   #less than
+lte(x1, x2) = (a = Vector{Float64}(undef,length(x1)); a .= x1 .≤ x2)  #less than or equal to
+gt(x1, x2) = (a = Vector{Float64}(undef,length(x1)); a .= x1 .> x2)   #greater than
+gte(x1, x2) = (a = Vector{Float64}(undef,length(x1)); a .= x1 .≥ x2)  #greater than or equal to
+e(x1, x2) = (a = Vector{Float64}(undef,length(x1)); a .= x1 .== x2)
 
 
 grammar_fuzzy = @grammar begin

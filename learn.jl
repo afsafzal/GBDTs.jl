@@ -71,11 +71,11 @@ p = MonteCarlo(2000, 5)
 println("MonteCarlo")
 
 println("Learning decision tree")
-if mode == "normal"
-    model = induce_tree(g, :b, p, X, y, args["depth"], afsoon_loss);
-else
-    model = induce_tree(g, :b, p, X, y, args["depth"], afsoon_loss_fuzzy);
-end
+#if mode == "normal"
+#    model = induce_tree(g, :b, p, X, y, args["depth"], afsoon_loss);
+#else
+model = induce_tree(g, :b, p, X, y, args["depth"], afsoon_loss_fuzzy);
+#end
 println("Finished learning")
 println("Show")
 show(model)
