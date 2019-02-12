@@ -31,8 +31,14 @@ s = ArgParseSettings()
         help = "name of the model"
         arg_type = String
         default = "model"
+    "--seed"
+        help = "random seed"
+        arg_type = Int
+        default = 0
 end
 args = parse_args(ARGS, s)
+
+Random.seed!(args["seed"])
 
 mode = "normal"
 if args["fuzzy"]
@@ -61,7 +67,7 @@ println("Grammar defined")
 const v = Dict{Symbol,Vector{Float64}}()
 mins, maxes = minimum(X), maximum(X)
 for (i,xid) in enumerate(names(X))
-    v[xid] = collect(range(mins[i],stop=maxes[i],length=10))
+    v[xid] = collect(range(mins[i],stop=maxes[i],length=3))
 end;
 
 println("Constants are set")
@@ -71,11 +77,11 @@ p = MonteCarlo(2000, 5)
 println("MonteCarlo")
 
 println("Learning decision tree")
-if mode == "normal"
-    model = induce_tree(g, :b, p, X, y, args["depth"], afsoon_loss);
-else
-    model = induce_tree(g, :b, p, X, y, args["depth"], afsoon_loss_fuzzy);
-end
+#if mode == "normal"
+#    model = induce_tree(g, :b, p, X, y, args["depth"], afsoon_loss);
+#else
+model = induce_tree(g, :b, p, X, y, args["depth"], afsoon_loss_fuzzy);
+#end
 println("Finished learning")
 println("Show")
 show(model)

@@ -23,7 +23,8 @@ export
         gini,
         gini_loss,
         afsoon_loss,
-        afsoon_loss_fuzzy
+        afsoon_loss_fuzzy,
+        print_rules
 
 using Discretizers
 using Reexport
@@ -32,6 +33,8 @@ using TikzGraphs, LightGraphs
 @reexport using AbstractTrees
 @reexport using ExprRules
 @reexport using ExprOptimization
+
+NEGLIGIBLE = 0.1
 
 """
     GBDTNode
@@ -110,6 +113,11 @@ Returns true if all elements in v are the same.
 """
 ishomogeneous(v::AbstractVector{T}) where T = length(unique(v)) == 1
 
+function is_nearly_homogenous(y_truth::AbstractVector{Int}, members::AbstractVector{Float64})
+# FIXME
+    return length([y_truth[i] for i in findall(x->x > NEGLIGIBLE, members)]) == 1
+end
+
 """
     gini_loss(node::RuleNode, grammar::Grammar, X::AbstractVector{T}, y_truth::AbstractVector{Int}, 
                      members::AbstractVector{Int}, eval_module::Module; 
@@ -145,8 +153,8 @@ function afsoon_loss(node::RuleNode, grammar::Grammar, X::AbstractVector{T}, y_t
     end
 end
 function afsoon_loss_fuzzy(node::RuleNode, grammar::Grammar, X::AbstractVector{T}, y_truth::AbstractVector{Int},
-                        members::AbstractVector{Int}, eval_module::Module, exprs::Array{Expr,1};
-                        w1::Float64=10.0,
+                        members::AbstractVector{Float64}, eval_module::Module, exprs::Array{Expr,1};
+                        w1::Float64=1000.0,
                         w2::Float64=0.1) where T
     ex = get_executable(node, grammar)
     if ex in exprs
@@ -154,10 +162,10 @@ function afsoon_loss_fuzzy(node::RuleNode, grammar::Grammar, X::AbstractVector{T
     end
     y_fuzz = partitionfuzzy(X, members, ex, eval_module)
     members_true, members_false = members_by_fuzz(members, y_fuzz)
-    if ishomogeneous(y_truth[members])
-        return w1*length(members_true)*length(members_false) + w2*length(node)
+    if is_nearly_homogenous(y_truth, members)
+        return w1*sum(members_true)*sum(members_false) + w2*length(node)
     else
-        return w1*gini(y_truth[members_true], y_truth[members_false]) + w2*length(node)
+        return w1*gini_afsoon(y_truth, members_true, members_false) + w2*length(node)
     end
 end
 
@@ -211,12 +219,12 @@ function induce_tree(grammar::Grammar, typ::Symbol, p::ExprOptAlgorithm, X::Abst
                         y_truth::AbstractVector{Int}, max_depth::Int, loss::Function=gini_loss,
                         eval_module::Module=Main; 
                         catdisc::Union{Nothing,CategoricalDiscretizer}=nothing,
-                        min_members_per_branch::Int=0,
+                        min_members_per_branch::Float64=0.0,
                         prevent_same_label::Bool=true,
                         verbose::Bool=false) where T
     verbose && println("Starting...")
     @assert length(X) == length(y_truth)
-    members = collect(1:length(y_truth))
+    members = ones(length(y_truth))
     node_count = Counter(0)
     cluster_count = length(unique(y_truth))
     void_label = cluster_count + 1
@@ -232,33 +240,44 @@ function induce_tree(grammar::Grammar, typ::Symbol, p::ExprOptAlgorithm, X::Abst
 end
 function _split(node_count::Counter, grammar::Grammar, typ::Symbol, p::ExprOptAlgorithm, 
                        X::AbstractVector{T}, y_truth::AbstractVector{Int}, 
-                       members::AbstractVector{Int}, 
+                       members::AbstractVector{Float64},
                        d::Int, loss::Function, eval_module::Module, void_label::Int,
                        exprs::Array{Expr,1};
-                       min_members_per_branch::Int=0,
+                       min_members_per_branch::Float64=0.0,
                        prevent_same_label::Bool=true,
                        verbose::Bool=false) where T
+    println(members)
+    flush(stdout)
     id = node_count.i += 1  #assign ids in preorder
-    if length(members) <= min_members_per_branch
+    if count(members .> NEGLIGIBLE) <= min_members_per_branch
         return GBDTNode(id, void_label)
     end
     if d == 0
-        return GBDTNode(id, mode(y_truth[members]))
+        return GBDTNode(id, best_label(y_truth, members))
     end
 
     #gbes
-    gbes_result = optimize(p, grammar, typ, (node,grammar)->loss(node, grammar, X, y_truth, 
+    println("before gbes")
+    @time gbes_result = optimize(p, grammar, typ, (node,grammar)->loss(node, grammar, X, y_truth, 
         members, eval_module, exprs); verbose=verbose)
+    println("after gbes")
+    flush(stdout)
 
     if gbes_result.expr in exprs
-        return GBDTNode(id, mode(y_truth[members]))
+        return GBDTNode(id, best_label(y_truth, members))
     end
 
-    y_bool = partitionfuzzy(X, members, gbes_result.expr, eval_module)
-    members_true, members_false = members_by_fuzz(members, y_bool)
+    y_fuzz = partitionfuzzy(X, members, gbes_result.expr, eval_module)
+    members_true, members_false = members_by_fuzz(members, y_fuzz)
 
-    if ishomogeneous(y_truth[members]) && length(members_true) > min_members_per_branch && length(members_false) > min_members_per_branch
-        return GBDTNode(id, mode(y_truth[members]))
+    n_true, n_false = count(members_true .> NEGLIGIBLE), count(members_false .> NEGLIGIBLE)
+
+    if is_nearly_homogenous(y_truth, members) && n_true > min_members_per_branch && n_false > min_members_per_branch
+        return GBDTNode(id, best_label(y_truth, members))
+    end
+
+    if n_true <= min_members_per_branch && n_false <= min_members_per_branch
+        return GBDTNode(id, best_label(y_truth, members))
     end
 
     #don't create split if split doesn't result in two valid groups 
@@ -285,7 +304,7 @@ function _split(node_count::Counter, grammar::Grammar, typ::Symbol, p::ExprOptAl
         prevent_same_label=prevent_same_label, 
         verbose=verbose)
 
-    return GBDTNode(id, mode(y_truth[members]), gbes_result, [child_true, child_false])
+    return GBDTNode(id, best_label(y_truth, members), gbes_result, [child_true, child_false])
 end
 
 """
@@ -301,11 +320,17 @@ function partition(X::AbstractVector{T}, members::AbstractVector{Int}, expr, eva
     end
     y_bool
 end
-function partitionfuzzy(X::AbstractVector{T}, members::AbstractVector{Int}, expr, eval_module::Module) where T
-    y_fuzz = Vector{Float64}(undef, length(members))
-    for i in eachindex(members)
-        @eval eval_module x = $(X[members[i]])
-        y_fuzz[i] = Core.eval(eval_module, expr) #use x in expression
+function partitionfuzzy(X::AbstractVector{T}, members::AbstractVector{Float64}, expr, eval_module::Module) where T
+    y_fuzz = zeros(length(members))
+    @eval eval_module x = Array{Any}(undef, Threads.nthreads())
+    @Threads.threads for i in findall(x->x>0.0, members)
+        if members[i] < NEGLIGIBLE
+            y_fuzz[i] = 0.5
+            continue # speedup
+        end
+#        @eval eval_module x = $(X[i])
+        @eval eval_module x[Threads.threadid()] = $(X[i])
+        y_fuzz[i] = Core.eval(eval_module, expr) #use x in expression #TODO This takes a long time
     end
     y_fuzz
 end
@@ -319,9 +344,9 @@ function members_by_bool(members::AbstractVector{Int}, y_bool::AbstractVector{Bo
     @assert length(y_bool) == length(members)
     return members[findall(y_bool)], members[findall(!,y_bool)]
 end
-function members_by_fuzz(members::AbstractVector{Int}, y_fuzz::AbstractVector{Float64})
+function members_by_fuzz(members::AbstractVector{Float64}, y_fuzz::AbstractVector{Float64})
     @assert length(y_fuzz) == length(members)
-    return members[findall(y_fuzz .> 0.0)], members[findall(y_fuzz .== 0.0)]
+    return members .* y_fuzz, members .* (1 .- y_fuzz)
 end
 
 """
@@ -344,6 +369,32 @@ function gini(v::AbstractVector{T}) where T
 end
 
 """
+    gini(v1::AbstractVector{T}, v2::AbstractVector{T}) where T
+
+Returns the gini impurity of v1 and v2 weighted by number of elements.
+"""
+function gini_afsoon(y_truth::AbstractVector{Int},
+                     members1::AbstractVector{Float64}, members2::AbstractVector{Float64})
+    N1, N2 = sum(members1), sum(members2)
+    return (N1*gini_afsoon(y_truth, members1) + N2*gini_afsoon(y_truth, members2)) / (N1+N2)
+end
+"""
+    gini(v::AbstractVector{T}) where T
+
+Returns the Gini impurity of v.  Returns 0.0 if empty.
+"""
+function gini_afsoon(y_truth::AbstractVector{Int}, members::AbstractVector{Float64})
+    s = sum(members)
+    if s < NEGLIGIBLE
+        return 0.0
+    end
+    label_to_score = Dict(y => score(findall(x->x==y, y_truth), members) for y in unique(y_truth))
+    v = values(label_to_score)
+    return 1.0 - sum(abs2, v ./ s)
+end
+
+
+"""
     Base.length(model::GBDT)
 
 Returns the number of vertices in the GBDT. 
@@ -364,6 +415,27 @@ end
 
 Base.show(io::IO, model::GBDT) = Base.show(io::IO, model.tree)
 Base.show(io::IO, tree::GBDTNode) = print_tree(io, tree)
+
+function print_rules(node::GBDTNode, void_label::Int, prefix::String)
+    if isleaf(node)
+        if node.label != void_label
+            println(prefix)
+        end
+        return
+    end
+
+    print_rules(node.children[1], void_label, string(prefix, " & ", node.gbes_result.expr))
+    print_rules(node.children[2], void_label, string(prefix, " & !", node.gbes_result.expr))
+end
+
+function score(indexes::AbstractVector{Int}, members::AbstractVector{Float64})
+    return sum(members[indexes])
+end
+
+function best_label(y_truth::AbstractVector{Int}, members::AbstractVector{Float64})
+    label_to_score = Dict(y => score(findall(x->x==y, y_truth), members) for y in unique(y_truth))
+    return findmax(label_to_score)[2]
+end
 
 """
     Base.display(model::GBDT; edgelabels::Bool=false)

@@ -31,31 +31,31 @@ while !eof(stdin)
     println("Model loaded")
 
     println("Classify")
-    if mode == "normal"
-        pred = classify(model, X)
-    else
-        pred = classifyfuzzy(model, X)
-    end
+#    if mode == "normal"
+#        pred = classify(model, X)
+#    else
+    pred = classifyfuzzy(model, X)
+#    end
 
     println("Classification done")
     println(pred)
 
     T = Vector{Float64}(undef, length(X))
 
-    if mode == "normal"
-        for i in eachindex(T)
-            if pred[i] == model.void_label
-                T[i] = 1.0
-            else
-                T[i] = 0.0
-            end
-        end
-    else
-        for i in eachindex(T)
-            val = get(pred[i], model.void_label, 0.0)
-            T[i] = val
-        end
+#    if mode == "normal"
+#        for i in eachindex(T)
+#            if pred[i] == model.void_label
+#                T[i] = 1.0
+#            else
+#                T[i] = 0.0
+#            end
+#        end
+#    else
+    for i in eachindex(T)
+        val = get(pred[i], model.void_label, 0.0)
+        T[i] = val
     end
+ #   end
 
     println("Wrongness:")
     println(T)
