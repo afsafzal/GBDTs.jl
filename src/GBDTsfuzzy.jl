@@ -258,9 +258,10 @@ function _split(node_count::Counter, grammar::Grammar, typ::Symbol, p::ExprOptAl
 
     #gbes
     println("before gbes")
-    gbes_result = optimize(p, grammar, typ, (node,grammar)->loss(node, grammar, X, y_truth, 
+    @time gbes_result = optimize(p, grammar, typ, (node,grammar)->loss(node, grammar, X, y_truth, 
         members, eval_module, exprs); verbose=verbose)
     println("after gbes")
+    flush(stdout)
 
     if gbes_result.expr in exprs
         return GBDTNode(id, best_label(y_truth, members))
@@ -321,12 +322,14 @@ function partition(X::AbstractVector{T}, members::AbstractVector{Int}, expr, eva
 end
 function partitionfuzzy(X::AbstractVector{T}, members::AbstractVector{Float64}, expr, eval_module::Module) where T
     y_fuzz = zeros(length(members))
-    for i in findall(x->x>0.0, members)
+    @eval eval_module x = Array{Any}(undef, Threads.nthreads())
+    @Threads.threads for i in findall(x->x>0.0, members)
         if members[i] < NEGLIGIBLE
             y_fuzz[i] = 0.5
             continue # speedup
         end
-        @eval eval_module x = $(X[i])
+#        @eval eval_module x = $(X[i])
+        @eval eval_module x[Threads.threadid()] = $(X[i])
         y_fuzz[i] = Core.eval(eval_module, expr) #use x in expression #TODO This takes a long time
     end
     y_fuzz
