@@ -31,8 +31,14 @@ s = ArgParseSettings()
         help = "name of the model"
         arg_type = String
         default = "model"
+    "--seed"
+        help = "random seed"
+        arg_type = Int
+        default = 0
 end
 args = parse_args(ARGS, s)
+
+Random.seed!(args["seed"])
 
 mode = "normal"
 if args["fuzzy"]
