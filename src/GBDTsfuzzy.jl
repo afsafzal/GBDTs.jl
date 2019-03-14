@@ -537,8 +537,20 @@ function classifyfuzzy(node::GBDTNode, X::AbstractVector{T},
 
     @eval eval_module x = Array{Any}(undef, Threads.nthreads())
     y_pred = Vector{Dict{Int64, Float64}}(undef,length(members))
+    threaded = true
+    try
+        @eval eval_module x[Threads.threadid()]=$(X[1])
+        labels = Dict{Int64, Float64}()
+        _classifyfuzzy(node, eval_module, 1.0, labels)
+    catch
+        threaded = false
+    end
     for i in eachindex(members)
-        @eval eval_module x[Threads.threadid()]=$(X[i])
+        if (threaded)
+            @eval eval_module x[Threads.threadid()]=$(X[i])
+        else
+            @eval eval_module x=$(X[i])
+        end
         labels = Dict{Int64, Float64}()
         _classifyfuzzy(node, eval_module, 1.0, labels)
         y_pred[i] = labels
